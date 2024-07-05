@@ -7,3 +7,4 @@ The http server project is a way for me to refresh and relearn C programming and
 
 ## Usage
 
+Currently, using netcat 127.*.*.* **** to ping the ip address and port.

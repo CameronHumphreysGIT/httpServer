@@ -4,7 +4,8 @@
 #include <string.h> 
 #include <arpa/inet.h>
 #include <errno.h>
-
+#include <unistd.h>
+#include <stdlib.h>
 
 
 int main (int argc, char** argv) {
@@ -17,15 +18,15 @@ int main (int argc, char** argv) {
     int clientSocket;
     struct sockaddr clientAddress;
     int clientAddress_len;
+    long port = 5001;
 
-    printf("%d\n", argc);
-    printf("port number: %s\n", argv[1]);
-    //TODO parse port number
-
-
-    /* socket(), bind(), and listen() 
-    have been called */
-    
+    if (argc > 1) {
+        printf("port number: %s\n", argv[1]);
+        port = strtol(argv[1], NULL, 0);
+        if (errno == ERANGE) {
+            printf("Oh dear, could not convert port input to long, using port 5000");
+        }
+    }
 
     //create socket using socket()
     s = socket(AF_INET, SOCK_STREAM, 0);
@@ -37,8 +38,8 @@ int main (int argc, char** argv) {
     /* make sure the sin_zero field is cleared */
     memset(&hostAddress, 0, sizeof(hostAddress));
     hostAddress.sin_family = AF_INET;
-    hostAddress.sin_addr.s_addr = inet_addr("127.0.0.1"); // TODO see: https://stackoverflow.com/questions/19246103/socket-errorerrno-99-cannot-assign-requested-address-and-namespace-in-python
-    hostAddress.sin_port = htons(5000); //TODO change this to the port parsed at the start
+    hostAddress.sin_addr.s_addr = inet_addr("127.10.1.5");
+    hostAddress.sin_port = htons(port);
 
     bindSuccess = bind(s, (struct sockaddr *) &hostAddress, sizeof(hostAddress));
     printf("return value of bind(): %d\n", bindSuccess);
@@ -54,11 +55,19 @@ int main (int argc, char** argv) {
     clientSocket = accept(s, &clientAddress, &clientAddress_len);
 
     printf("return value of accept(): %d\n", clientSocket);
-    //now use recv() or read()
+    //TODO now use recv() or read()
 
-    //TODO close the connection
+    //TODO send a response
 
-    //send a response
+    //first, shutdown the socket so it won't wait on data currently being received/sent
+    int shutdownSuccess = shutdown(s, 2);
+    printf("return value of shutdown(): %d\n", shutdownSuccess);
+    if(shutdownSuccess == -1) {
+        printf("Oh dear, something went wrong with shutdown()! %s, %d\n", strerror(errno), errno);
+    }
+    int closeSuccess = close(s);
+    printf("return value of close(): %d\n", closeSuccess);
+    
 
     return 0;
 }
