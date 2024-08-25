@@ -10,17 +10,42 @@
 #include <stdbool.h>
 #include <sys/time.h>
 
-//TODO: test accept and recv timouts, address warnings.
-int receive(int clientSocket, char messageBuffer[], int buffersize) {
-    int bytes = recv(clientSocket, messageBuffer, buffersize, 0);
+//TODO: refactor code somehow? how to even Organize C code?
+struct received{
+    int bytes;
+    bool received;
+};
+
+struct received receive(int clientSocket, char messageBuffer[], int bufferSize) {
+    bool recvd = false;
+    int bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
     while (bytes != 0 && bytes != -1) {
+        recvd = true;
         //receive, 10 bytes at a time until all has been received
         printf("received a message, bytes: %d, content: %s\n", bytes, messageBuffer);
         //clean the buffer
-        memset(messageBuffer, '\0', sizeof(messageBuffer));
-        bytes = recv(clientSocket, messageBuffer, buffersize, 0);
+        memset(messageBuffer, '\0', (bufferSize + 1)* sizeof(char));
+        bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
     }
-    return bytes;
+    struct received result = {bytes, recvd};
+    return result;
+}
+
+int cleanup(int serverSocket) {
+    //first, shutdown the socket so it won't wait on data currently being received/sent
+    int shutdownSuccess = shutdown(serverSocket, 2);
+    printf("return value of shutdown(): %d\n", shutdownSuccess);
+    if(shutdownSuccess == -1) {
+        printf("Oh dear, something went wrong with shutdown()! errno: %s, %d\n", strerror(errno), errno);
+        return -1;
+    }
+    int closeSuccess = close(serverSocket);
+    printf("return value of close(): %d\n", closeSuccess);
+    if(closeSuccess == -1) {
+        printf("Oh dear, something went wrong with close()! errno: %s, %d\n", strerror(errno), errno);
+        return -1;
+    }
+    return 0;
 }
 
 
@@ -33,9 +58,13 @@ int main (int argc, char** argv) {
     struct sockaddr clientAddress;
     int clientAddressLength;
     long port = 5001;
-    int acceptRetries = 5;//TODO set this in a config
-    int recvRetires = 5;//TODO set this in a config/command line args
-
+    //TODO set these in a config/ or take in command line args
+        const int acceptRetries = 5;
+        const int recvRetries = 5;
+        const int timeoutSeconds = 5;
+        const int recvTries = 5;//TODO: use this somehow??
+        const int bufferSize = 10;
+        const char* addressString = "127.10.1.3";
 
     if (argc > 1) {
         printf("port number: %s\n", argv[1]);
@@ -49,19 +78,17 @@ int main (int argc, char** argv) {
     serverSocket= socket(AF_INET, SOCK_STREAM, 0);
     printf("return value of socket(): %d\n", serverSocket);
 
-    //bind socket using bind()
+    //bind socket using bind()10
 
     //set hostAddress:
     /* make sure the sin_zero field is cleared */
     memset(&hostAddress, 0, sizeof(hostAddress));
     hostAddress.sin_family = AF_INET;
-    hostAddress.sin_addr.s_addr = inet_addr("127.10.1.6");//TODO set this in config/commandline args
+    hostAddress.sin_addr.s_addr = inet_addr(addressString);
     hostAddress.sin_port = htons(port);
 
-    //Setting timeout for operations
-    int timeout_in_seconds = 5;//TODO set this in a config file, if set to 0 this will just block
     struct timeval tv;
-    tv.tv_sec = timeout_in_seconds;
+    tv.tv_sec = timeoutSeconds;
     tv.tv_usec = 0;
     setsockopt(serverSocket, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
 
@@ -69,7 +96,7 @@ int main (int argc, char** argv) {
     printf("return value of bind(): %d\n", bindSuccess);
     if(bindSuccess == -1) {
         printf("Oh dear, something went wrong with bind()! errno: %s, %d\n", strerror(errno), errno);
-        return -1;
+        return cleanup(serverSocket);
     }
     //listen on socket using listen()
     int listenSuccess = listen(serverSocket, 0); //expecting only 1 connection request
@@ -95,53 +122,46 @@ int main (int argc, char** argv) {
         }
         if (errno != 11 && errno != 0) {
             printf("Oh dear, something went wrong with accept()! errno: %s, %d\n", strerror(errno), errno);
+            return cleanup(serverSocket);
         }
     }
     
-    if (clientSocket != -1){
-        //We only want to try receiving if we successfully accepted a connection
-        //TODO set things into retry loops if timeout != 0 (what about negative numbers?)
-        //use receive once
-        char messageBuffer[10] = {};//TODO change 10 to a defined global???, command line arg??
-
-        //TODO make a recv() function
-        int bytes = receive(clientSocket, messageBuffer, 10);
-        if (bytes == -1) {
+    //We only want to try receiving if we successfully accepted a connection
+    if (clientSocket != -1) {    
+        //buffersize + 1 so if the buffer is full there can be a t
+        char messageBuffer[bufferSize + 1] = {};
+        //clean the message buffer
+        memset(messageBuffer, '\0', (bufferSize + 1) * sizeof(char));
+        struct received result = receive(clientSocket, messageBuffer, bufferSize);
+        //if timeout, set into a retry loop
+        if (result.bytes == -1 && timeoutSeconds > 0) {
             int retryCount = 1;
-            while (errno == 11 && retryCount <= recvRetires) {
+            while (errno == 11 && retryCount <= recvRetries) {
                 printf("Looks like recv() timed out, retrying... errno: %s, %d\n", strerror(errno), errno);
                 errno = 0;
-                //try accept() again
-                printf("Retry attempt %d of recv(): %d\n", retryCount);
-                //TODO call recv() function
-                bytes = receive(clientSocket, messageBuffer, 10);
+                //try recv() again
+                printf("Retry attempt %d of recv()\n", retryCount);
+                struct received result = receive(clientSocket, messageBuffer, bufferSize);
+                //if we received any message, rest the previous retry attempts.
+                if (result.received) {
+                    retryCount = 0;
+                }
                 retryCount++;
             }
-            if (retryCount > recvRetires) {
-                printf("Looks like recv() failed after %d tries. errno: %s, %d\n", recvRetires, strerror(errno), errno);
-            }
-            if (errno != 11) {
-                printf("Oh dear, something went wrong with recv()! errno: %s, %d\n", strerror(errno), errno);
+            if (retryCount > recvRetries) {
+                printf("Looks like recv() failed after %d tries. errno: %s, %d\n", recvRetries, strerror(errno), errno);
             }
         }
-        //put that into a loop that will wait and retry.
+        if (errno != 11) {
+            //TODO: process errno0 (Success) which will receive 0 bytes when client closes the connection (Ctrl+C)
+            printf("Oh dear, something went wrong with recv()! errno: %s, %d\n", strerror(errno), errno);
+            return cleanup(serverSocket);
+        }
     }
 
     //TODO send a response
 
-
-    //TODO put shutdown into a function and call it before returning -1 when errors are encountered.
-    //first, shutdown the socket so it won't wait on data currently being received/sent
-    int shutdownSuccess = shutdown(serverSocket, 2);
-    printf("return value of shutdown(): %d\n", shutdownSuccess);
-    if(shutdownSuccess == -1) {
-        printf("Oh dear, something went wrong with shutdown()! errno: %s, %d\n", strerror(errno), errno);
-        return -1;
-    }
-    int closeSuccess = close(serverSocket);
-    printf("return value of close(): %d\n", closeSuccess);
-    
-
-    return 0;
+    //TODO: add binary to gitignore.
+    return cleanup(serverSocket);
 }
 
