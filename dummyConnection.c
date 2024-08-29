@@ -133,9 +133,9 @@ int main (int argc, char** argv) {
         //clean the message buffer
         memset(messageBuffer, '\0', (bufferSize + 1) * sizeof(char));
         struct received result = receive(clientSocket, messageBuffer, bufferSize);
-        //if timeout, set into a retry loop
-        if (result.bytes == -1 && timeoutSeconds > 0) {
-            int retryCount = 1;
+        //we will start a retry loop if timeout
+        int retryCount = 1;
+        if (timeoutSeconds > 0) {
             while (errno == 11 && retryCount <= recvRetries) {
                 printf("Looks like recv() timed out, retrying... errno: %s, %d\n", strerror(errno), errno);
                 errno = 0;
@@ -148,20 +148,28 @@ int main (int argc, char** argv) {
                 }
                 retryCount++;
             }
-            if (retryCount > recvRetries) {
-                printf("Looks like recv() failed after %d tries. errno: %s, %d\n", recvRetries, strerror(errno), errno);
-            }
         }
-        if (errno != 11) {
-            //TODO: process errno0 (Success) which will receive 0 bytes when client closes the connection (Ctrl+C)
-            printf("Oh dear, something went wrong with recv()! errno: %s, %d\n", strerror(errno), errno);
+        //TODO: error handler function handle errors.
+        //This case means that there has been some kind of issue
+        if (result.bytes == 0 || result.bytes == -1) {
+            switch(errno) {
+                case 0:
+                    printf("The client has closed the connection bytes: %d, errno: %s, %d\n", result.bytes, strerror(errno), errno);
+                    break;
+                case 11:
+                    //TODO: for some reason in this case the connection doesn't seem to close correctly.
+                    printf("Looks like recv() failed after %d tries. errno: %s, %d\n", recvRetries, strerror(errno), errno);
+                    break;
+                default:
+                    printf("Oh dear, something went wrong with recv()! errno: %s, %d\n", strerror(errno), errno);
+                    break;
+            }
             return cleanup(serverSocket);
         }
     }
 
     //TODO send a response
 
-    //TODO: add binary to gitignore.
     return cleanup(serverSocket);
 }
 
