@@ -33,21 +33,46 @@ struct received receive(int clientSocket, char messageBuffer[], int bufferSize) 
 
 int cleanup(int serverSocket) {
     //first, shutdown the socket so it won't wait on data currently being received/sent
-    int shutdownSuccess = shutdown(serverSocket, 2);
+    int shutdownSuccess = shutdown(serverSocket, SHUT_RDWR);
     printf("return value of shutdown(): %d\n", shutdownSuccess);
     if(shutdownSuccess == -1) {
-        printf("Oh dear, something went wrong with shutdown()! errno: %s, %d\n", strerror(errno), errno);
+        printf("Oh dear, something went wrong with server shutdown()! errno: %s, %d\n", strerror(errno), errno);
         return -1;
     }
     int closeSuccess = close(serverSocket);
     printf("return value of close(): %d\n", closeSuccess);
     if(closeSuccess == -1) {
-        printf("Oh dear, something went wrong with close()! errno: %s, %d\n", strerror(errno), errno);
+        printf("Oh dear, something went wrong with server close()! errno: %s, %d\n", strerror(errno), errno);
         return -1;
     }
     return 0;
 }
 
+int cleanupClientAndServer(int serverSocket, int clientSocket) {
+    int closeSuccess = close(clientSocket);
+    printf("return value of close(): %d\n", closeSuccess);
+    if(closeSuccess == -1) {
+        printf("Oh dear, something went wrong with client close()! errno: %s, %d\n", strerror(errno), errno);
+        return -1;
+    }
+    //then, shutdown the server socket so it won't wait on data currently being received/sent
+    return cleanup(serverSocket);
+}
+
+void printErrors(int bytes, int recvRetries) {
+    switch(errno) {
+        case 0:
+            printf("The client has closed the connection bytes: %d, errno: %s, %d\n", bytes, strerror(errno), errno);
+            break;
+        case 11:
+            //when the connection is established, but closed serverside, 
+            printf("Looks like recv() failed after %d tries. errno: %s, %d\n", recvRetries, strerror(errno), errno);
+            break;
+        default:
+            printf("Oh dear, something went wrong with recv()! errno: %s, %d\n", strerror(errno), errno);
+            break;
+    }
+}
 
 int main (int argc, char** argv) {
     //Vars:
@@ -62,7 +87,6 @@ int main (int argc, char** argv) {
         const int acceptRetries = 5;
         const int recvRetries = 5;
         const int timeoutSeconds = 5;
-        const int recvTries = 5;//TODO: use this somehow??
         const int bufferSize = 10;
         const char* addressString = "127.10.1.3";
 
@@ -149,27 +173,15 @@ int main (int argc, char** argv) {
                 retryCount++;
             }
         }
-        //TODO: error handler function handle errors.
         //This case means that there has been some kind of issue
         if (result.bytes == 0 || result.bytes == -1) {
-            switch(errno) {
-                case 0:
-                    printf("The client has closed the connection bytes: %d, errno: %s, %d\n", result.bytes, strerror(errno), errno);
-                    break;
-                case 11:
-                    //TODO: for some reason in this case the connection doesn't seem to close correctly.
-                    printf("Looks like recv() failed after %d tries. errno: %s, %d\n", recvRetries, strerror(errno), errno);
-                    break;
-                default:
-                    printf("Oh dear, something went wrong with recv()! errno: %s, %d\n", strerror(errno), errno);
-                    break;
-            }
-            return cleanup(serverSocket);
+            printErrors(result.bytes, recvRetries);
+            return cleanupClientAndServer(serverSocket, clientSocket);
         }
     }
 
     //TODO send a response
 
-    return cleanup(serverSocket);
+    return cleanupClientAndServer(serverSocket, clientSocket);
 }
 
