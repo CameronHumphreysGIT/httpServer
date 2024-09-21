@@ -16,13 +16,31 @@ struct received{
     bool received;
 };
 
-struct received receive(int clientSocket, char messageBuffer[], int bufferSize) {
+struct received receiveUntilTimeout(int clientSocket, char messageBuffer[], int bufferSize) {
     bool recvd = false;
     int bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
     while (bytes != 0 && bytes != -1) {
         recvd = true;
         //receive, 10 bytes at a time until all has been received
         printf("received a message, bytes: %d, content: %s\n", bytes, messageBuffer);
+        //clean the buffer
+        memset(messageBuffer, '\0', (bufferSize + 1)* sizeof(char));
+        bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
+    }
+    struct received result = {bytes, recvd};
+    return result;
+}
+
+struct received receiveOneMessage(int clientSocket, char messageBuffer[], int bufferSize) {
+    bool recvd = false;
+    int bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
+    while (bytes != 0 && bytes != -1) {
+        recvd = true;
+        //receive, 10 bytes at a time until all has been received
+        printf("received a message, bytes: %d, content: %s\n", bytes, messageBuffer);
+        if (messageBuffer[bytes - 1] == '\n') {
+            break;
+        }
         //clean the buffer
         memset(messageBuffer, '\0', (bufferSize + 1)* sizeof(char));
         bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
@@ -102,10 +120,7 @@ int main (int argc, char** argv) {
     serverSocket= socket(AF_INET, SOCK_STREAM, 0);
     printf("return value of socket(): %d\n", serverSocket);
 
-    //bind socket using bind()10
-
     //set hostAddress:
-    /* make sure the sin_zero field is cleared */
     memset(&hostAddress, 0, sizeof(hostAddress));
     hostAddress.sin_family = AF_INET;
     hostAddress.sin_addr.s_addr = inet_addr(addressString);
@@ -143,6 +158,7 @@ int main (int argc, char** argv) {
         }
         if (retryCount > acceptRetries) {
             printf("Looks like accept() failed after %d tries. errno: %s, %d\n", acceptRetries, strerror(errno), errno);
+            return cleanup(serverSocket);
         }
         if (errno != 11 && errno != 0) {
             printf("Oh dear, something went wrong with accept()! errno: %s, %d\n", strerror(errno), errno);
@@ -156,7 +172,7 @@ int main (int argc, char** argv) {
         char messageBuffer[bufferSize + 1] = {};
         //clean the message buffer
         memset(messageBuffer, '\0', (bufferSize + 1) * sizeof(char));
-        struct received result = receive(clientSocket, messageBuffer, bufferSize);
+        struct received result = receiveOneMessage(clientSocket, messageBuffer, bufferSize);
         //we will start a retry loop if timeout
         int retryCount = 1;
         if (timeoutSeconds > 0) {
@@ -165,7 +181,7 @@ int main (int argc, char** argv) {
                 errno = 0;
                 //try recv() again
                 printf("Retry attempt %d of recv()\n", retryCount);
-                struct received result = receive(clientSocket, messageBuffer, bufferSize);
+                struct received result = receiveOneMessage(clientSocket, messageBuffer, bufferSize);
                 //if we received any message, rest the previous retry attempts.
                 if (result.received) {
                     retryCount = 0;
@@ -180,8 +196,14 @@ int main (int argc, char** argv) {
         }
     }
 
-    //TODO send a response
-
+    //TODO send a HTTP response
+    char* message = "200 OK";
+    int sendSuccess = send(clientSocket, message, 7 * sizeof(char), 0);
+    printf("return value of send(): %d\n", sendSuccess);
+    if(sendSuccess == -1) {
+        printf("Oh dear, something went wrong with send()! errno: %s, %d\n", strerror(errno), errno);
+        return cleanupClientAndServer(serverSocket, clientSocket);
+    }
     return cleanupClientAndServer(serverSocket, clientSocket);
 }
 
