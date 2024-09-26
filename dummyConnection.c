@@ -181,7 +181,7 @@ int main (int argc, char** argv) {
                 errno = 0;
                 //try recv() again
                 printf("Retry attempt %d of recv()\n", retryCount);
-                struct received result = receiveOneMessage(clientSocket, messageBuffer, bufferSize);
+                result = receiveOneMessage(clientSocket, messageBuffer, bufferSize);
                 //if we received any message, rest the previous retry attempts.
                 if (result.received) {
                     retryCount = 0;
@@ -196,24 +196,9 @@ int main (int argc, char** argv) {
         }
     }
 
-    //TODO send a HTTP response
-
-    /*EXAMPLE:
-    HTTP/1.1 200 OK
-    Date: Mon, 27 Jul 2009 12:28:53 GMT
-    Server: Apache/2.2.14 (Win32)
-    Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
-    Content-Length: 88
-    Content-Type: text/html
-    Connection: Closed
-    <html>
-        <body>
-            <h1>Hello, World!</h1>
-        </body>
-    </html>  
-    */
-    char* message = "HTTP/1.1 200 OK\r\nDate: Mon, 27 Jul 2009 12:28:53 GMT\r\nServer: Apache/2.2.14 (Win32)\r\nLast-Modified: Wed, 22 Jul 2009 19:15:56 GMT\r\nContent-Length: 88\r\nContent-Type: text/html\r\nConnection: Closed\r\n<html><body>Hi</body></html>\r\n\r\n";
-    int sendSuccess = send(clientSocket, message, 229 * sizeof(char), 0);
+    //TODO: get HTML response from a file
+    char* message = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body>Hi</body></html>";
+    int sendSuccess = send(clientSocket, message, 75 * sizeof(char), 0);
     printf("return value of send(): %d\n", sendSuccess);
     if(sendSuccess == -1) {
         printf("Oh dear, something went wrong with send()! errno: %s, %d\n", strerror(errno), errno);
