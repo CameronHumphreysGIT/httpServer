@@ -197,8 +197,8 @@ int main (int argc, char** argv) {
     }
 
     //TODO: get HTML response from a file
-    char* message = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body>Hi</body></html>";
-    int sendSuccess = send(clientSocket, message, 75 * sizeof(char), 0);
+    char* message = "HTTP/1.1 200 OK\r\nContent-Length: 93\r\nContent-Type: text/html\r\n\r\n<html><body>Hi</body></html>";
+    int sendSuccess = send(clientSocket, message, 93 * sizeof(char), 0);
     printf("return value of send(): %d\n", sendSuccess);
     if(sendSuccess == -1) {
         printf("Oh dear, something went wrong with send()! errno: %s, %d\n", strerror(errno), errno);
