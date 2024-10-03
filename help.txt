@@ -1,0 +1,9 @@
+Usage:
+ httpServer [-p port] [-h]
+
+Run an http server on specified port.
+
+Options:
+ -p, --port                    specifies the port on which the httpServer will communicate
+
+ -h, --help                    display this help

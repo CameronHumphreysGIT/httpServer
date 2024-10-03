@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <sys/time.h>
+#include <getopt.h>
 
 //TODO: refactor code somehow? how to even Organize C code?
 struct received{
@@ -92,6 +93,30 @@ void printErrors(int bytes, int recvRetries) {
     }
 }
 
+void printHelp() {
+    // Opening file
+    FILE *file_ptr;
+
+    // String buffer that stores the read character
+    char str[50];
+
+    // Opening file in reading mode
+    file_ptr = fopen("help.txt", "r");
+
+    if (NULL == file_ptr) {
+        printf("help.txt file can't be opened \n");
+        return;
+    }
+
+    // Reading stinrg using fgets
+    while (fgets(str, 50, file_ptr) != NULL) {
+        printf("%s", str);
+    }
+
+    // Closing the file
+    fclose(file_ptr);
+}
+
 int main (int argc, char** argv) {
     //Vars:
     int serverSocket;
@@ -109,11 +134,23 @@ int main (int argc, char** argv) {
         const char* addressString = "127.10.1.3";
 
     if (argc > 1) {
-        printf("port number: %s\n", argv[1]);
-        port = strtol(argv[1], NULL, 0);
-        if (errno == ERANGE) {
-            printf("Oh dear, could not convert port input to long, using port %ld", port);
+        int opt = getopt(argc, argv, "p:h");
+        switch (opt) {
+        case 'p':
+            port = strtol(optarg, NULL, 0);
+            if (errno == ERANGE) {
+                printf("Oh dear, could not convert port input to  a long value, using port %ld", port);
+            }
+            break;
+        case 'h':
+            printHelp();
+            break;
+        default:
+            fprintf(stderr, "Usage: %s [-p port] [-h]\n",
+                    argv[0]);
+            exit(EXIT_FAILURE);
         }
+
     }
 
     //create socket using socket()
