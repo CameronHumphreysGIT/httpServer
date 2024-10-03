@@ -126,7 +126,7 @@ int main (int argc, char** argv) {
     struct sockaddr clientAddress;
     int clientAddressLength;
     long port = 5001;
-    //TODO set these in a config/ or take in command line args
+    //TODO set these in a config and take in command line args, also how to make the program silent?
         const int acceptRetries = 5;
         const int recvRetries = 5;
         const int timeoutSeconds = 5;
