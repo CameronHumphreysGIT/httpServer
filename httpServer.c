@@ -10,11 +10,15 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <getopt.h>
+//TODO: set this in a config, or figure out how to let requestString be flexible somehow?
+#define REQUESTBUFFERSIZE 100
+
 
 //TODO: refactor code somehow? how to even Organize C code?
 struct received{
     int bytes;
     bool received;
+    char* requestString;
 };
 
 struct received receiveUntilTimeout(int clientSocket, char messageBuffer[], int bufferSize) {
@@ -28,25 +32,38 @@ struct received receiveUntilTimeout(int clientSocket, char messageBuffer[], int 
         memset(messageBuffer, '\0', (bufferSize + 1)* sizeof(char));
         bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
     }
+    //TODO: consider killing this method? also set MessageBuffer somehow
     struct received result = {bytes, recvd};
     return result;
 }
 
-struct received receiveOneMessage(int clientSocket, char messageBuffer[], int bufferSize) {
+struct received receiveOneRequest(int clientSocket, char messageBuffer[], int bufferSize) {
     bool recvd = false;
+    int totalBytes = 0;
+    char request[REQUESTBUFFERSIZE] = {};
+    char* test = request;
     int bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
-    while (bytes != 0 && bytes != -1) {
+    while (bytes != 0 && bytes != -1 && totalBytes <= REQUESTBUFFERSIZE) {
         recvd = true;
         //receive, 10 bytes at a time until all has been received
         printf("received a message, bytes: %d, content: %s\n", bytes, messageBuffer);
-        if (messageBuffer[bytes - 1] == '\n') {
+        //copy over to the request buffer
+        totalBytes += bytes;
+        if (totalBytes > REQUESTBUFFERSIZE) {
+            int writeBytes = totalBytes - REQUESTBUFFERSIZE - 1;
+            memset(&messageBuffer[writeBytes], '\0', sizeof(char));
+            //TODO: set last character to a newline character
+        }
+        strcat(request, messageBuffer);
+        if (messageBuffer[bytes - 1] == '\n') {    char request[REQUESTBUFFERSIZE] = {};
+    char* test = request;
             break;
         }
         //clean the buffer
         memset(messageBuffer, '\0', (bufferSize + 1)* sizeof(char));
         bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
     }
-    struct received result = {bytes, recvd};
+    struct received result = {bytes, recvd, request};
     return result;
 }
 
@@ -130,8 +147,9 @@ int main (int argc, char** argv) {
         const int acceptRetries = 5;
         const int recvRetries = 5;
         const int timeoutSeconds = 5;
-        const int bufferSize = 10;
+        const int messageBufferSize = 10;
         const char* addressString = "127.10.1.3";
+        const int requestBufferSize = 100;
 
     if (argc > 1) {
         int opt = getopt(argc, argv, "p:h");
@@ -150,7 +168,6 @@ int main (int argc, char** argv) {
                     argv[0]);
             exit(EXIT_FAILURE);
         }
-
     }
 
     //create socket using socket()
@@ -183,6 +200,7 @@ int main (int argc, char** argv) {
     clientSocket = accept(serverSocket, &clientAddress, &clientAddressLength);
     printf("return value of accept(): %d\n", clientSocket);
     //check if error with accept
+    //TODO revise the structure of this code.
     if(clientSocket == -1) {
         int retryCount = 1;
         while (errno == 11 && retryCount <= acceptRetries) {
@@ -202,14 +220,14 @@ int main (int argc, char** argv) {
             return cleanup(serverSocket);
         }
     }
-    
+    struct received result;
     //We only want to try receiving if we successfully accepted a connection
     if (clientSocket != -1) {    
-        //buffersize + 1 so if the buffer is full there can be a t
-        char messageBuffer[bufferSize + 1] = {};
+        //buffersize + 1 so if the buffer is full there is still an end character so printf doesn't print forever.
+        char messageBuffer[messageBufferSize + 1] = {};
         //clean the message buffer
-        memset(messageBuffer, '\0', (bufferSize + 1) * sizeof(char));
-        struct received result = receiveOneMessage(clientSocket, messageBuffer, bufferSize);
+        memset(messageBuffer, '\0', (messageBufferSize + 1) * sizeof(char));
+        result = receiveOneRequest(clientSocket, messageBuffer, messageBufferSize);
         //we will start a retry loop if timeout
         int retryCount = 1;
         if (timeoutSeconds > 0) {
@@ -218,7 +236,7 @@ int main (int argc, char** argv) {
                 errno = 0;
                 //try recv() again
                 printf("Retry attempt %d of recv()\n", retryCount);
-                result = receiveOneMessage(clientSocket, messageBuffer, bufferSize);
+                result = receiveOneRequest(clientSocket, messageBuffer, messageBufferSize);
                 //if we received any message, rest the previous retry attempts.
                 if (result.received) {
                     retryCount = 0;
@@ -232,6 +250,8 @@ int main (int argc, char** argv) {
             return cleanupClientAndServer(serverSocket, clientSocket);
         }
     }
+    //check if received has been initialized
+
 
     //TODO: get HTML response from a file
     char* message = "HTTP/1.1 200 OK\r\nContent-Length: 93\r\nContent-Type: text/html\r\n\r\n<html><body>Hi</body></html>";
