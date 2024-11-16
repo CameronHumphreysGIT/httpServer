@@ -43,20 +43,18 @@ struct received receiveOneRequest(int clientSocket, char messageBuffer[], int bu
     char request[REQUESTBUFFERSIZE] = {};
     char* test = request;
     int bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
-    while (bytes != 0 && bytes != -1 && totalBytes <= REQUESTBUFFERSIZE) {
+    while (bytes != 0 && bytes != -1 && totalBytes < REQUESTBUFFERSIZE) {
         recvd = true;
         //receive, 10 bytes at a time until all has been received
+        if (totalBytes + bytes >= REQUESTBUFFERSIZE) {
+            int writeBytes = REQUESTBUFFERSIZE - totalBytes - 1;
+            memset(&messageBuffer[writeBytes], '\n', sizeof(char));
+        }
         printf("received a message, bytes: %d, content: %s\n", bytes, messageBuffer);
         //copy over to the request buffer
         totalBytes += bytes;
-        if (totalBytes > REQUESTBUFFERSIZE) {
-            int writeBytes = totalBytes - REQUESTBUFFERSIZE - 1;
-            memset(&messageBuffer[writeBytes], '\0', sizeof(char));
-            //TODO: set last character to a newline character
-        }
         strcat(request, messageBuffer);
-        if (messageBuffer[bytes - 1] == '\n') {    char request[REQUESTBUFFERSIZE] = {};
-    char* test = request;
+        if (messageBuffer[bytes - 1] == '\n') {
             break;
         }
         //clean the buffer
