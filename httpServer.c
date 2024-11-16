@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <sys/time.h>
 #include <getopt.h>
+#include <htmlParser.h>
 //TODO: set this in a config, or figure out how to let requestString be flexible somehow?
 #define REQUESTBUFFERSIZE 100
 
@@ -252,7 +253,7 @@ int main (int argc, char** argv) {
 
 
     //TODO: get HTML response from a file
-    char* message = "HTTP/1.1 200 OK\r\nContent-Length: 93\r\nContent-Type: text/html\r\n\r\n<html><body>Hi</body></html>";
+    char* message = parseRequest(result.requestString);
     int sendSuccess = send(clientSocket, message, 93 * sizeof(char), 0);
     printf("return value of send(): %d\n", sendSuccess);
     if(sendSuccess == -1) {
