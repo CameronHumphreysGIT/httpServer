@@ -11,7 +11,7 @@
         {
             "type": "shell",
             "label": "run the makefile",
-            "command": "make",
+            "command": "make -C ${workspaceFolder}/src/",
             "args": [],
             "problemMatcher": [],
         }

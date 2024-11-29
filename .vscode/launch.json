@@ -4,7 +4,7 @@
             "name": "(gdb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/httpServer",
+            "program": "${workspaceFolder}/src/httpServer",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
