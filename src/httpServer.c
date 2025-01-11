@@ -117,14 +117,14 @@ void printHelp() {
     char str[50];
 
     // Opening file in reading mode
-    file_ptr = fopen("help.txt", "r");
+    file_ptr = fopen("../resources/help.txt", "r");
 
     if (NULL == file_ptr) {
         printf("help.txt file can't be opened \n");
         return;
     }
 
-    // Reading stinrg using fgets
+    // Reading string using fgets
     while (fgets(str, 50, file_ptr) != NULL) {
         printf("%s", str);
     }
@@ -252,14 +252,14 @@ int main (int argc, char** argv) {
     //check if received has been initialized
 
 
-    //TODO: get HTML response from a file
     char* message = parseRequest(result.requestString);
-    int sendSuccess = send(clientSocket, message, 93 * sizeof(char), 0);
+    int sendSuccess = send(clientSocket, message, 142 * sizeof(char), 0);
     printf("return value of send(): %d\n", sendSuccess);
     if(sendSuccess == -1) {
         printf("Oh dear, something went wrong with send()! errno: %s, %d\n", strerror(errno), errno);
         return cleanupClientAndServer(serverSocket, clientSocket);
     }
+    sleep(5);
     return cleanupClientAndServer(serverSocket, clientSocket);
 }
 
