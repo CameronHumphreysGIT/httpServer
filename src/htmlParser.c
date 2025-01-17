@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <regex.h>
 #include "../include/htmlParser.h"
 
 char* read_all(int fd, int *nread){
@@ -26,7 +27,11 @@ char* createResponse(char* resource) {
     FILE *file_ptr;
 
     // Opening file in reading mode
-    file_ptr = fopen("../resources/helloWorld.html", "r");
+    char* resourceDir = "../resources/";
+    char* file = malloc(strlen(resource) + strlen(resourceDir));
+    strcpy(file, resourceDir);
+    strcat(file, resource);
+    file_ptr = fopen(file, "r");
     int fd = fileno(file_ptr);
 
     if (NULL == file_ptr) {
@@ -40,12 +45,24 @@ char* createResponse(char* resource) {
 
     // Closing the file
     fclose(file_ptr);
-    char* responce = malloc(72 + *nread);
-    strcpy(responce, "HTTP/1.1 200 OK\r\nContent-Length: 93\r\nContent-Type: text/html\r\n\r\n");
+    char* responceHeader = "HTTP/1.1 200 OK\r\nContent-Length: 93\r\nContent-Type: text/html\r\n\r\n";
+    char* responce = malloc(strlen(responceHeader) + *nread);
+    strcpy(responce, responceHeader);
     strcat(responce, htmlContent);
     return responce;
 }
 
 char* parseRequest(char* request) {
-    return createResponse("");
+  regex_t getRegex;
+  int value;
+ 
+  // Function call to create regex
+  value = regcomp( &getRegex, "GET", 0);
+  if (value == 0) {
+    value = regexec( &getRegex, request, 0, NULL, 0);
+    if (value == 0) {
+      return createResponse("helloWorld.html");
+    }
+  }
+  return createResponse("");
 }
