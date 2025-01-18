@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <regex.h>
 #include "../include/htmlParser.h"
-
+regex_t getRegex;
 char* read_all(int fd, int *nread){
   int bytes_read = 0, bufLength = 1024;
   int readSize = bufLength/4;
@@ -53,16 +53,15 @@ char* createResponse(char* resource) {
 }
 
 char* parseRequest(char* request) {
-  regex_t getRegex;
-  int value;
- 
+  //char* localReq = *request;
+  //int comp, exec;
   // Function call to create regex
-  value = regcomp( &getRegex, "GET", 0);
-  if (value == 0) {
-    value = regexec( &getRegex, request, 0, NULL, 0);
-    if (value == 0) {
-      return createResponse("helloWorld.html");
-    }
+  int comp = regcomp(&getRegex, "[[.GET.]]", 0);
+  int exec = regexec(&getRegex, request, (size_t) 0, NULL, 0);
+  regfree(&getRegex);
+
+  if (comp != 0 && exec != 0) {
+    return createResponse("helloWorld.html");
   }
   return createResponse("");
 }
