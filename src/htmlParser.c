@@ -46,21 +46,19 @@ char* createResponse(char* resource) {
     // Closing the file
     fclose(file_ptr);
     char* responceHeader = "HTTP/1.1 200 OK\r\nContent-Length: 93\r\nContent-Type: text/html\r\n\r\n";
-    char* responce = malloc(strlen(responceHeader) + *nread);
+    //TODO: check for success
+    char* responce = malloc(sizeof(char) * (strlen(responceHeader) + *nread + 1));
     strcpy(responce, responceHeader);
     strcat(responce, htmlContent);
     return responce;
 }
 
-char* parseRequest(char* request) {
-  //char* localReq = *request;
-  //int comp, exec;
-  // Function call to create regex
-  int comp = regcomp(&getRegex, "[[.GET.]]", 0);
+char* parseRequest(const char* request) {
+  int comp = regcomp(&getRegex, "[.GET.]", 0);
   int exec = regexec(&getRegex, request, (size_t) 0, NULL, 0);
   regfree(&getRegex);
-
-  if (comp != 0 && exec != 0) {
+  free(request);
+  if (comp == 0 && exec == 0) {
     return createResponse("helloWorld.html");
   }
   return createResponse("");

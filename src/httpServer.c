@@ -41,7 +41,11 @@ struct received receiveUntilTimeout(int clientSocket, char messageBuffer[], int 
 struct received receiveOneRequest(int clientSocket, char messageBuffer[], int bufferSize) {
     bool recvd = false;
     int totalBytes = 0;
-    char request[REQUESTBUFFERSIZE] = {};
+    char* request = malloc(sizeof(char) * REQUESTBUFFERSIZE);
+    if (request == NULL) {
+        struct received result = {0, false, NULL};
+        return result;
+    }
     char* test = request;
     int bytes = recv(clientSocket, messageBuffer, bufferSize, 0);
     while (bytes != 0 && bytes != -1 && totalBytes < REQUESTBUFFERSIZE) {
@@ -251,9 +255,9 @@ int main (int argc, char** argv) {
     }
     //check if received has been initialized
 
-
     char* message = parseRequest(result.requestString);
     int sendSuccess = send(clientSocket, message, 142 * sizeof(char), 0);
+    free(message);
     printf("return value of send(): %d\n", sendSuccess);
     if(sendSuccess == -1) {
         printf("Oh dear, something went wrong with send()! errno: %s, %d\n", strerror(errno), errno);

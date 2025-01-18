@@ -1,5 +1,5 @@
 #ifndef HTMLPARSER_H
 #define HTMLPARSER_H
 
-char* parseRequest(char*);
+char* parseRequest(const char*);
 #endif
