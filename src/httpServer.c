@@ -12,7 +12,7 @@
 #include <getopt.h>
 #include "../include/htmlParser.h"
 //TODO: set this in a config, or figure out how to let requestString be flexible somehow?
-#define REQUESTBUFFERSIZE 100
+#define REQUESTBUFFERSIZE 1000
 
 
 //TODO: refactor code somehow? how to even Organize C code?
@@ -255,7 +255,9 @@ int main (int argc, char** argv) {
     }
     //check if received has been initialized
 
+    printf("Received Request: %s\n", result.requestString);
     char* message = parseRequest(result.requestString);
+    printf("Sending Message: %s\n", message);
     int sendSuccess = send(clientSocket, message, 142 * sizeof(char), 0);
     free(message);
     printf("return value of send(): %d\n", sendSuccess);

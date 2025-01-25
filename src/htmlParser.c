@@ -50,6 +50,7 @@ char* createResponse(char* resource) {
     char* responce = malloc(sizeof(char) * (strlen(responceHeader) + *nread + 1));
     strcpy(responce, responceHeader);
     strcat(responce, htmlContent);
+    strcat(responce, "\0");
     return responce;
 }
 
