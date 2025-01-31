@@ -45,7 +45,8 @@ char* createResponse(char* resource) {
 
     // Closing the file
     fclose(file_ptr);
-    char* responceHeader = "HTTP/1.1 200 OK\r\nContent-Length: 93\r\nContent-Type: text/html\r\n\r\n";
+    char responceHeader[70];
+    sprintf(responceHeader, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: text/html\r\n\r\n", *nread);
     //TODO: check for success
     char* responce = malloc(sizeof(char) * (strlen(responceHeader) + *nread + 1));
     strcpy(responce, responceHeader);
