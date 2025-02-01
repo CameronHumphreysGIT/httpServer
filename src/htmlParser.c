@@ -4,8 +4,12 @@
 #include <unistd.h>
 #include <regex.h>
 #include "../include/htmlParser.h"
+#define RESPONSEHEADERLEN 100
+
 regex_t getRegex;
-char* read_all(int fd, int *nread){
+
+
+char* readAll(int fd, int *nread){
   int bytes_read = 0, bufLength = 1024;
   int readSize = bufLength/4;
   *nread = 0;
@@ -22,7 +26,25 @@ char* read_all(int fd, int *nread){
   return buf;
 }
 
-char* createResponse(char* resource) {
+char* getResponseHeader(int responseType, int contentLength) {
+  char* responceHeader = malloc(sizeof(char) * RESPONSEHEADERLEN);
+  if (responceHeader == NULL) {
+    return "";
+  }
+  switch (responseType) {
+    case 200:
+      sprintf(responceHeader, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: text/html\r\n\r\n", contentLength);
+      return responceHeader;
+    case 404:
+    //TODO: fix this ContentLength not matching problem
+      sprintf(responceHeader, "HTTP/1.1 404 Not Found\r\nContent-Length: %d\r\nContent-Type: text/html\r\n\r\n", contentLength + 1);
+      return responceHeader;
+    default:
+      return "";
+  }
+}
+
+char* createResponse(char* resource, int responceType) {
     // Opening file
     FILE *file_ptr;
 
@@ -41,12 +63,10 @@ char* createResponse(char* resource) {
 
     // Read all
     int* nread = malloc(sizeof(int));
-    char* htmlContent = read_all(fd, nread);
-
+    char* htmlContent = readAll(fd, nread);
     // Closing the file
     fclose(file_ptr);
-    char responceHeader[70];
-    sprintf(responceHeader, "HTTP/1.1 200 OK\r\nContent-Length: %d\r\nContent-Type: text/html\r\n\r\n", *nread);
+    char* responceHeader = getResponseHeader(responceType, *nread);
     //TODO: check for success
     char* responce = malloc(sizeof(char) * (strlen(responceHeader) + *nread + 1));
     strcpy(responce, responceHeader);
@@ -56,12 +76,15 @@ char* createResponse(char* resource) {
 }
 
 char* parseRequest(const char* request) {
-  int comp = regcomp(&getRegex, "[.GET.]", 0);
-  int exec = regexec(&getRegex, request, (size_t) 0, NULL, 0);
+  const int nMatches = 1;
+  regmatch_t regMatch[nMatches];
+  //TODO: fix this regex
+  const int comp = regcomp(&getRegex, "(GET).*", 0);
+  const int exec = regexec(&getRegex, request, nMatches, regMatch, 0);
   regfree(&getRegex);
   free(request);
   if (comp == 0 && exec == 0) {
-    return createResponse("helloWorld.html");
+    return createResponse("helloWorld.html", 200);
   }
-  return createResponse("");
+  return createResponse("resourceNotFound.html", 404);
 }
